@@ -10,7 +10,12 @@
 	<name>deploy</name>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-
+		<jar.name>artifact-deploy-js-crusapp-ui-1.0.0-release.tar.gz</jar.name>
+		<jar.home>/araf/tomcats/apache-tomcat-8-cloud-front/webapps/cloud-front/WEB-INF/views</jar.home>
+    <tmp.home>/tmp</tmp.home>
+    <!-- 登录linux用户名密码 -->
+		<test1.server.address>scp://araf:App1adm2@10.1.58.87</test1.server.address>
+    <cloud-front.path>crusapp-ui</cloud-front.path>
 	</properties>
 
 	<profiles>
@@ -23,6 +28,93 @@
 
 		</profile>
 		<!-- Remote Deploy Artifact to ACCA Development Environment -->
+
+		<profile>
+			<id>testdeploy</id>
+			<!-- Remote Deploy Artifact to ACCA Development Environment -->
+			<build>
+				<plugins>
+				<plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+				<version>2.5.3</version>
+                <configuration>
+                     <descriptors>
+                        <!-- 描述文件路径 -->
+                        <descriptor>assembly.xml</descriptor>
+                    </descriptors>
+                    <archive>
+
+                    </archive>
+                </configuration>
+                <executions>
+                    <execution>
+                        <!--名字任意 -->
+                        <id>make-assembly</id>
+                        <!-- 绑定到package生命周期阶段上 -->
+                        <phase>install</phase>
+                        <goals>
+                            <!-- 只运行一次 -->
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+					<!-- Deploy Web/Schedule/Execution Subsystem to DEV Environment -->
+					<plugin>
+						<groupId>com.github.goldin</groupId>
+						<artifactId>copy-maven-plugin</artifactId>
+						<version>0.2.5</version>
+						<executions>
+							<execution>
+								<id>deploy-subsystem-archive</id>
+								<phase>install</phase>
+								<goals>
+									<goal>copy</goal>
+								</goals>
+								<configuration>
+									<resources>
+										<resource>
+                    <!-- scp://araf:App1adm2@10.1.58.87:temp -->
+											<targetPath>${test1.server.address}:${tmp.home}/</targetPath>
+                      <!-- firstApp-ui/target/artifact-deploy-js-crusapp-ui-1.0.0-release.tar.gz -->
+											<file>${project.basedir}/target/${jar.name}</file>
+										</resource>
+									</resources>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>com.github.goldin</groupId>
+						<artifactId>sshexec-maven-plugin</artifactId>
+						<version>0.2.5</version>
+						<executions>
+							<execution>
+								<id>restart-tomcat</id>
+								<phase>install</phase>
+								<goals>
+									<goal>sshexec</goal>
+								</goals>
+								<configuration>
+               <!-- scp://araf:App1adm2@10.1.58.87:/araf/tomcats/apache-tomcat-8-cloud-front/webapps/cloud-front/WEB-INF/views -->
+									<location>${test1.server.address}:${jar.home}/</location>
+									<commands>
+                  <!--删除 crusapp-ui 目录下的文件-->
+									<command>rm -rf ${cloud-front.path}/</command>
+                  <!--x 解压.tar.gz的文件 /tmp/artifact-deploy-js-crusapp-ui-1.0.0-release.tar.gz
+                   这里的压缩文件是dist文件-->
+									<command>tar -xzvf ${tmp.home}/${jar.name} -C ${tmp.home}/</command>
+                  <!-- 将文件 /tmp/dist/crusapp-ui 移到目录 /araf/nginx/html/crusapp-ui/-->
+									<command>mv ${tmp.home}/dist/test ${jar.home}/${cloud-front.path}/</command>
+									</commands>
+								</configuration>
+							</execution>
+
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
 
 
 		<profile>
